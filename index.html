@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Controle de Mouse com Giroscópio</title>
+    <style>
+      body {
+        background: #121212;
+        color: #fff;
+        font-family: sans-serif;
+        text-align: center;
+        padding: 40px;
+      }
+      button {
+        padding: 15px 30px;
+        background: crimson;
+        border: none;
+        color: white;
+        font-size: 16px;
+        cursor: pointer;
+        margin-top: 20px;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Modo Giroscópio</h1>
+    <p>Use o celular para controlar o mouse do seu PC</p>
+    <h2>Dados: <span id="spanData"></span></h2>
+    <button id="start">Iniciar controle</button>
+
+    <script>
+      let socket;
+      const spanData = document.getElementById("spanData");
+
+      document.getElementById("start").addEventListener("click", async () => {
+        socket = new WebSocket("ws://192.168.96.107:8080"); // use o IP local do PC
+
+        socket.onopen = () => {
+          alert("Conectado ao servidor WebSocket!");
+        };
+
+        if (
+          typeof DeviceOrientationEvent != "undefined" &&
+          typeof DeviceOrientationEvent.requestPermission == "function"
+        ) {
+          try {
+            const permission = await DeviceOrientationEvent.requestPermission();
+            if (permission !== "granted") {
+              alert("Permissão para acessar o giroscópio negada.");
+              return;
+            }
+          } catch (err) {
+            alert("Erro ao solicitar permissão de sensores: " + err);
+            return;
+          }
+        } else {
+            alert("err")
+        }
+
+        window.addEventListener("deviceorientation", (event) => {
+          if (!socket || socket.readyState !== 1) return;
+
+          const { alpha, beta } = event;
+          spanData.innerText = `Alpha: ${alpha?.toFixed(
+            2
+          )} | Beta: ${beta?.toFixed(2)}`;
+
+          socket.send(JSON.stringify({ alpha, beta }));
+        });
+      });
+    </script>
+  </body>
+</html>
