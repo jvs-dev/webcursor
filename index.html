@@ -2,7 +2,6 @@
 <html lang="pt-BR">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Controle de Mouse com Giroscópio</title>
     <style>
       body {
@@ -11,6 +10,9 @@
         font-family: sans-serif;
         text-align: center;
         padding: 40px;
+      }
+      h1 {
+        margin-bottom: 20px;
       }
       button {
         padding: 15px 30px;
@@ -21,53 +23,67 @@
         cursor: pointer;
         margin-top: 20px;
       }
+      #data {
+        margin-top: 30px;
+        font-size: 18px;
+        line-height: 1.6;
+      }
     </style>
   </head>
   <body>
     <h1>Modo Giroscópio</h1>
     <p>Use o celular para controlar o mouse do seu PC</p>
-    <h2>Dados: <span id="spanData"></span></h2>
     <button id="start">Iniciar controle</button>
+    <div id="data">Aguardando dados...</div>
 
     <script>
+      const dataEl = document.getElementById("data");
       let socket;
-      const spanData = document.getElementById("spanData");
 
       document.getElementById("start").addEventListener("click", async () => {
-        socket = new WebSocket("ws://192.168.96.107:8080"); // use o IP local do PC
+        // Conecta ao servidor WebSocket do PC
+        socket = new WebSocket("ws://192.168.0.100:8080"); // << Troque pelo IP local do seu PC!
 
         socket.onopen = () => {
           alert("Conectado ao servidor WebSocket!");
         };
 
+        socket.onerror = (e) => {
+          alert("Erro ao conectar. Verifique o IP e a rede.");
+        };
+
+        // Solicita permissão no iOS (não afeta Android)
         if (
-          typeof DeviceOrientationEvent != "undefined" &&
-          typeof DeviceOrientationEvent.requestPermission == "function"
+          typeof DeviceOrientationEvent !== "undefined" &&
+          typeof DeviceOrientationEvent.requestPermission === "function"
         ) {
-          try {
-            const permission = await DeviceOrientationEvent.requestPermission();
-            if (permission !== "granted") {
-              alert("Permissão para acessar o giroscópio negada.");
-              return;
-            }
-          } catch (err) {
-            alert("Erro ao solicitar permissão de sensores: " + err);
+          const permission = await DeviceOrientationEvent.requestPermission();
+          if (permission !== "granted") {
+            alert("Permissão negada para acessar o giroscópio.");
             return;
           }
-        } else {
-            alert("err")
         }
 
-        window.addEventListener("deviceorientation", (event) => {
+        // Escuta os dados do sensor
+        ondeviceorientation = (event) => {
           if (!socket || socket.readyState !== 1) return;
 
           const { alpha, beta } = event;
-          spanData.innerText = `Alpha: ${alpha?.toFixed(
-            2
-          )} | Beta: ${beta?.toFixed(2)}`;
+          if (alpha == null || beta == null) return;
 
-          socket.send(JSON.stringify({ alpha, beta }));
-        });
+          // Mostra na tela
+          dataEl.innerHTML = `Alpha: ${alpha.toFixed(
+            2
+          )}<br>Beta: ${beta.toFixed(2)}`;
+
+          // Envia para o backend
+          const screenWidth = window.innerWidth;
+          const screenHeight = window.innerHeight;
+
+          socket.send(
+            JSON.stringify({ alpha, beta, screenWidth, screenHeight })
+          );
+        };
       });
     </script>
   </body>
